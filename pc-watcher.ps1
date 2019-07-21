@@ -6,7 +6,9 @@
 #
 # Installation
 #   https://github.com/imseandavis/PSTerminalServices (MSI is included here)
-#
+#   Copy PSTerminalServices module to Documents/Powershell/Modules
+#   Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+
 
 Import-Module PSTerminalServices
 
@@ -29,7 +31,8 @@ LogFile "$save_dir\logs\pc-watcher-log-$started_day.txt"
 
     
 while ($true) {
-  Start-Sleep -Seconds 5
+  Start-Sleep (Get-Random -Minimum 5 -Maximum 30)
+
   $force_logout_reason=''
 
   $cur_date=Get-Date
@@ -46,21 +49,22 @@ while ($true) {
   }
 
 
-
   $timesupkidz_status=(Get-Service -Include TimesUpKidz).Status
 
   if ( $timesupkidz_status -ne 'Running' ) {
     $force_logout_reason="TimesUpKidz is not running"
   }
 
-  Log Get-TSSession
+  $my_hash=(Get-FileHash -Path $MyInvocation.MyCommand.Definition).Hash.substring(0,10)
+
+  Log "Status: tuk=$timesupkidz_status clock=$time_status myhash=$my_hash"
 
   Get-TSSession -State Active | ForEach-Object {
     $user=$_.UserName; 
     $session= $_.SessionId; 
     $station = $_.WindowStationName
 
-    Log "$user ($session) $station"
+    Log "Active_user:$user session:$session station:$station"
     if ('' -eq $user) {
       continue;
     }

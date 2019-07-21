@@ -103,6 +103,10 @@ Function Global:Log-Entry {
 	} Else {$NoNewline = $False}
 	$My.Log.Inline = $NoNewline
 	If (($My.Log.Location -ne "") -And $My.Log.Buffer -And !$NoNewline) {
+        while ( (Test-IsFileLocked -Path $My.Log.Location).IsLocked ) {
+          Start-Sleep -Milliseconds 100
+        }
+
 		If ((Add-content $My.Log.Location $My.Log.Buffer -ErrorAction SilentlyContinue -PassThru).Length -gt 0) {$My.Log.Buffer = ""}
 	}
 }; Set-Alias Write-Log Log-Entry -Scope:Global
