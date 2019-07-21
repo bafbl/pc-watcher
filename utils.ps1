@@ -1,0 +1,1 @@
+﻿. $PSScriptRoot/log-entry.ps1

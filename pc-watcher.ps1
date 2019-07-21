@@ -1,8 +1,32 @@
-﻿$prev_epoch=Get-Date -UFormat %s
-$epoch_file="c:/users/admin/pc-watcher-epoch.txt"
-$screenshot_dir="c:/users/admin/pc-watcher-screenshots"
-$always_allow_users="/admin/"
-$screenshot_users="max-school max-admin"
+﻿# This script is a background task (run as a scheduled task that watches
+# different aspects of the kids' computers:
+#  Make sure TimesUpKidz is running
+#  Make sure time has not been adjusted backwards
+#  Take screenshots of certain users (that are only supposed to be used for school, robotics, etc)
+#
+# Installation
+#   https://github.com/imseandavis/PSTerminalServices (MSI is included here)
+#
+
+Import-Module PSTerminalServices
+
+$prev_epoch=Get-Date -UFormat %s
+$save_dir="$PSScriptRoot/save"
+
+. $PSScriptRoot/config/pc-watcher-config.ps1
+. $PSScriptRoot/utils.ps1
+
+$epoch_file="$PSScriptRoot/save/pc-watcher-epoch.txt"
+$screenshot_dir="$PSScriptRoot/save/pc-watcher-screenshots"
+
+New-Item -ItemType Directory -Force -Path $save_dir
+New-Item -ItemType Directory -Force -Path $save_dir\logs
+New-Item -ItemType Directory -Force -Path $screenshot_dir
+
+$started_day=Get-Date -UFormat %Y%m%d
+
+LogFile "$save_dir\logs\pc-watcher-log-$started_day.txt"
+
     
 while ($true) {
   Start-Sleep -Seconds 5
@@ -14,26 +38,7 @@ while ($true) {
   $diff_time=$cur_epoch - $prev_epoch
   $prev_epoch = $cur_epoch
 
-  (quser console) -replace "^>",''  |Select-Object -Skip 1 | ForEach-Object {
-				$CurrentLine = $_.Trim() -Replace '\s+', ' ' -Split '\s'
-				$console_user = $CurrentLine[0]
-				$console_session = $CurrentLine[2]
-				$console_status = $CurrentLine[3..$CurrentLine.Length]
-     }
- 
-  if ( $cur_user -eq '' ) {
-    "$cur_date - no user logged in"
-    continue
-  }
-
-  $console_logonui=Get-Process logonui -ErrorAction Stop | Where-Object {$_.SessionID -eq $console_session}
-
-  if ($console_logonui.Count -gt 0 ) {
-    "$cur_date - console is locked"
-    continue
-  }
-
-  if ($diff -lt 0) {
+  if ($diff_time -lt 0) {
     $time_status="Clock went backwards"
     $force_logout_reason=$time_status
   } else {
@@ -48,19 +53,39 @@ while ($true) {
     $force_logout_reason="TimesUpKidz is not running"
   }
 
+  Log Get-TSSession
 
-  "$cur_date - $console_user tuk=$timesupkidz_status clock=$time_status force_logout_reason=$force_logout_reason"
+  Get-TSSession -State Active | ForEach-Object {
+    $user=$_.UserName; 
+    $session= $_.SessionId; 
+    $station = $_.WindowStationName
 
-
-  if ($force_logout_reason -ne '') {
-    if ( $always_allow_users.Contains('/' + $console_user + '/') ) {
-      "$cur_date - Not forcing logout because $console_user is always allowed access"
-      continue
+    Log "$user ($session) $station"
+    if ('' -eq $user) {
+      continue;
     }
 
-    "$cur_date - Killing processes because: $force_logout_reason."
-    #Get-Process | Select -Property ID, SessionID | Where-Object { $_.SessionID -eq $console_sessions } | ForEach-Object { Stop-Process -ID $_.ID -Force -ErrorAction SilentlyContinue }
-    #Start-Sleep -Seconds 2
-    #logoff
-  } 
+    if ($station -ne 'Console') {
+      #Is users allowed to be logged in remotely
+      if ( $allowed_remote_users.Contains('/' + $user + '/') ) {
+        Log "User is allowed to be logged in remotely: $user"
+      } else {
+        $force_logout_reason="User is not allowed to be logged in remotely"
+      }
+    }
+              
+    Log "$user tuk=$timesupkidz_status clock=$time_status force_logout_reason=$force_logout_reason"
+
+
+    if ($force_logout_reason -ne '') {
+      if ( $always_allow_users.Contains('/' + $user + '/') ) {
+        Log "Not forcing logout because $user is always allowed access"
+        continue
+      }
+
+      Log "Killing processes because: $force_logout_reason."
+      Get-Process | Select -Property ID, SessionID | Where-Object { $_.SessionID -eq $session } | ForEach-Object { Stop-Process -ID $_.ID -Force -ErrorAction SilentlyContinue }
+      Start-Sleep -Seconds 2
+    }
+  }
 }
