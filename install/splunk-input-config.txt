@@ -1,0 +1,3 @@
+[monitor://c:\users\admin\pc-watcher-data\logs]
+disabled=0
+sourcetype=pc-watcher-logs
