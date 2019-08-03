@@ -18,8 +18,8 @@ $save_dir="$PSScriptRoot/save"
 . $PSScriptRoot/config/pc-watcher-config.ps1
 . $PSScriptRoot/utils.ps1
 
-$epoch_file="$PSScriptRoot/save/pc-watcher-epoch.txt"
-$screenshot_dir="$PSScriptRoot/save/pc-watcher-screenshots"
+$epoch_file="$save_dir/pc-watcher-epoch.txt"
+$screenshot_dir="$save_dir/pc-watcher-screenshots"
 
 New-Item -ItemType Directory -Force -Path $save_dir
 New-Item -ItemType Directory -Force -Path $save_dir\logs
@@ -56,16 +56,16 @@ while ($true) {
   }
 
   #$my_hash=(Get-FileHash -Path $MyInvocation.MyCommand.Definition).Hash.substring(0,10)
+  $my_hash="unk"
 
-  #Log "Status: tuk=$timesupkidz_status clock=$time_status myhash=$my_hash"
-  Log "Status: tuk=$timesupkidz_status clock=$time_status myHash=unk"
+  Log "message=system_status tuk=$timesupkidz_status clock=$time_status myhash=$my_hash"
 
   Get-TSSession -State Active | ForEach-Object {
     $user=$_.UserName; 
     $session= $_.SessionId; 
     $station = $_.WindowStationName
 
-    Log "active_user=$user session=$session station=$station"
+    Log "message=session_details user_name=$user session_id=$session windows_station=$station"
     if ('' -eq $user) {
       continue;
     }
@@ -73,22 +73,22 @@ while ($true) {
     if ($station -ne 'Console') {
       #Is users allowed to be logged in remotely
       if ( $allowed_remote_users.Contains('/' + $user + '/') ) {
-        Log "User is allowed to be logged in remotely: $user"
+        Log "message=remote_user_okay User is allowed to be logged in remotely: $user"
       } else {
         $force_logout_reason="User is not allowed to be logged in remotely"
       }
     }
               
-    Log "active_user=$user tuk=$timesupkidz_status clock=$time_status force_logout_reason=$force_logout_reason"
+    Log "message=summary active_user=$user tuk=$timesupkidz_status clock=$time_status force_logout_reason=$force_logout_reason"
 
 
     if ($force_logout_reason -ne '') {
       if ( $always_allow_users.Contains('/' + $user + '/') ) {
-        Log "Not forcing logout because $user is always allowed access"
+        Log "message=ignoring_problem Not forcing logout because $user is always allowed access"
         continue
       }
 
-      Log "Killing processes because: $force_logout_reason."
+      Log "message=killing_processes cause=$force_logout_reason."
       Get-Process | Select -Property ID, SessionID | Where-Object { $_.SessionID -eq $session } | ForEach-Object { Stop-Process -ID $_.ID -Force -ErrorAction SilentlyContinue }
       Start-Sleep -Seconds 2
     }
