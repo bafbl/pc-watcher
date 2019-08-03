@@ -55,16 +55,17 @@ while ($true) {
     $force_logout_reason="TimesUpKidz is not running"
   }
 
-  $my_hash=(Get-FileHash -Path $MyInvocation.MyCommand.Definition).Hash.substring(0,10)
+  #$my_hash=(Get-FileHash -Path $MyInvocation.MyCommand.Definition).Hash.substring(0,10)
 
-  Log "Status: tuk=$timesupkidz_status clock=$time_status myhash=$my_hash"
+  #Log "Status: tuk=$timesupkidz_status clock=$time_status myhash=$my_hash"
+  Log "Status: tuk=$timesupkidz_status clock=$time_status myHash=unk"
 
   Get-TSSession -State Active | ForEach-Object {
     $user=$_.UserName; 
     $session= $_.SessionId; 
     $station = $_.WindowStationName
 
-    Log "Active_user:$user session:$session station:$station"
+    Log "active_user=$user session=$session station=$station"
     if ('' -eq $user) {
       continue;
     }
@@ -78,7 +79,7 @@ while ($true) {
       }
     }
               
-    Log "$user tuk=$timesupkidz_status clock=$time_status force_logout_reason=$force_logout_reason"
+    Log "active_user=$user tuk=$timesupkidz_status clock=$time_status force_logout_reason=$force_logout_reason"
 
 
     if ($force_logout_reason -ne '') {
