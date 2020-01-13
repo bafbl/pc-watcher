@@ -1,0 +1,17 @@
+Run the PSTerminalServices installer 
+  (PSTerminalServices-Powershell Module folder is not normally needed)
+
+Enable powershell scripting as Admin user
+ Run the following line within powershell and say Yes to the prompt:
+   Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+
+Install splunk forwarder:
+https://www.splunk.com/en_us/download/universal-forwarder.html
+or bbl bit.ly link
+
+
+Cygwin:
+ -rsync, openssh, curl
+ -cygrunsrv
+
+ffmpeg: https://ffmpeg.zeranoe.com/builds/

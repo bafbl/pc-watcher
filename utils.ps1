@@ -1,4 +1,11 @@
-﻿. $PSScriptRoot/log-entry.ps1
+﻿Function Logit {
+  Param (
+        [parameter(Mandatory=$True,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True)]
+        [string[]]$Msg
+    )
+  $Now=(Get-Date -Format "yyyy-MM-dd HH:mm:ss.ff")
+  "$Now - $Msg"
+}
 
 Function Test-IsFileLocked {
     [cmdletbinding()]
