@@ -28,6 +28,8 @@ Import-Module -Name c:\users\admin\Documents\WindowsPowerShell\modules\PSTermina
 
 $epoch_file="$save_dir/pc-watcher-epoch.txt"
 $screenshot_dir="$save_dir/pc-watcher-screenshots"
+$screenmaster_dir="$save_dir/screen-captures"
+$lockout_file="$save_dir/logs/lockout.txt"
 
 New-Item -ItemType Directory -Force -Path $save_dir | Out-Null
 New-Item -ItemType Directory -Force -Path $save_dir\logs | Out-Null
@@ -37,41 +39,72 @@ $started_day=Get-Date -UFormat %Y%m%d
 
     
 while ($true) {
-  Start-Sleep (Get-Random -Minimum 5 -Maximum 6)
+  Start-Sleep (Get-Random -Minimum 5 -Maximum 10)
 
   $force_logout_reason=''
 
   $cur_date=Get-Date
+  
+  # Used to highlight problems in log. This is set to ALERT when an entry is unusual.
+  $alert = ""
 
   $cur_epoch=Get-Date -UFormat %s
   $diff_time=$cur_epoch - $prev_epoch
   $prev_epoch = $cur_epoch
 
+  if (Test-Path "$lockout_file")
+  {
+    Logit "Lockout file exists"
+    $alert="ALERT"
+    $force_logout_reason="|lockout file exists|$force_logout_reason"
+  }
+
   if ($diff_time -lt 0) {
+    $alert="ALERT"
+    Logit "$cur_date ($cur_epoch) Clock went backwards: epoch was $prev_epoch- $diff_time"
     $time_status="Clock went backwards"
-    $force_logout_reason=$time_status
+    $force_logout_reason="|$time_status|$force_logout_reason"
   } else {
     $time_status="ok"
   }
 
+  # Remove small screenshots because they're blank
+  Get-ChildItem "$screenmaster_dir" -Filter *.jpg -recurse -file | ? {$_.length -lt 90000} | % {Remove-Item $_.fullname}
+  
+  # Remove old screenshots
+  $CurrentDate = Get-Date
+  $DatetoDelete = $CurrentDate.AddDays(-14)
+  Get-ChildItem "$screenmaster_dir" | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item
 
   $timesupkidz_status=(Get-Service -Include TimesUpKidz).Status
 
   if ( $timesupkidz_status -ne 'Running' ) {
-    $force_logout_reason="TimesUpKidz is not running"
+    $alert="ALERT"
+    $force_logout_reason="|TimesUpKidz is not running|$force_logout_reason"
   }
 
   #$my_hash=(Get-FileHash -Path $MyInvocation.MyCommand.Definition).Hash.substring(0,10)
   $my_hash="unk"
 
-  Logit "message=system_status tuk=$timesupkidz_status clock=$time_status myhash=$my_hash"
+  Logit "msg=system_status tuk=$timesupkidz_status clock=$time_status myhash=$my_hash"
 
+  # Check to see if any processes are being run by illegal users
+  if ('' -ne "$disallowed_process_owners") {
+    $bad_procs=(Get-Process -IncludeUserName | Where UserName -match "$disallowed_process_owners")
+    if ('' -ne "$bad_procs") {
+	  $alert="ALERT"
+	  Logit "Processes running as $disallowed_process_owners - $bad_procs"
+
+	  $force_logout_reason="|Process(es) owned by $disallowed_process_owners|$force_logout_reason"
+	}
+  }
+  
   Get-TSSession -State Active | ForEach-Object {
     $user=$_.UserName; 
     $session= $_.SessionId; 
     $station = $_.WindowStationName
 
-    Logit "message=session_details user_name=$user session_id=$session windows_station=$station"
+    Logit "msg=session_details user_name=$user session_id=$session windows_station=$station"
     if ('' -eq $user) {
       continue;
     }
@@ -79,39 +112,28 @@ while ($true) {
     if ($station -ne 'Console') {
       #Is users allowed to be logged in remotely
       if ( $allowed_remote_users.Contains('/' + $user + '/') ) {
-        Logit "message=remote_user_okay User is allowed to be logged in remotely: $user"
+        Logit "msg=remote_user_okay User is allowed to be logged in remotely: $user"
       } else {
-        $force_logout_reason="User is not allowed to be logged in remotely"
+        $force_logout_reason="|User is not allowed to be logged in remotely|$force_logout_reason"
       }
     }
-              
-    if ( $screenshot_users.Contains('/' + $user + '/') ) {
-      Logit "message=taking_screen_shot"
-      screenshot "$screenshot_dir/shot.jpg"
-
-      $d=$(Get-Date -Format yyyy-MM-dd)
-
-      $image_dir="$screenshot_dir/$d"
-      New-Item -ItemType Directory -Force -Path "$image_dir" | Out-Null
-
-      $epoch=$([Math]::Round($(Get-Date -UFormat %s)))
-      $image_file="$image_dir/screen-$epoch-$d-$(Get-Date -Format HHmmss).jpg"
-      ResizeImage "$screenshot_dir/shot.jpg" 30 640 "$image_file"
-      $took_screenshot="true"
-    } else {
-      $took_screenshot="false"
-    }
-
-    Logit "message=summary active_user=$user tuk=$timesupkidz_status clock=$time_status screenshot=$took_screenshot force_logout_reason=$force_logout_reason"
+    Logit "msg=summary active_user=$user tuk=$timesupkidz_status clock=$time_status force_logout_reason=$force_logout_reason"
 
 
     if ($force_logout_reason -ne '') {
       if ( $always_allow_users.Contains('/' + $user + '/') ) {
-        Logit "message=ignoring_problem Not forcing logout because $user is always allowed access"
+        Logit "msg=ignoring_problem Not forcing logout because $user is always allowed access"
         continue
       }
 
-      Logit "message=killing_processes cause=$force_logout_reason."
+      $alert="ALERT"
+	  Logit "Writing force-logout reason to: $lockout_file"
+	  if ( -not (Test-Path "$lockout_file") )
+	  {  
+	     New-Item "$lockout_file"
+		 Set-Content "$lockout_file" "$cur_date - $force_logout_reason"
+	  }
+      Logit "msg=killing_processes cause=$force_logout_reason."
       Get-Process | Select -Property ID, SessionID | Where-Object { $_.SessionID -eq $session } | ForEach-Object { Stop-Process -ID $_.ID -Force -ErrorAction SilentlyContinue }
       Start-Sleep -Seconds 2
     }
