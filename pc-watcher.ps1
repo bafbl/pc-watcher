@@ -27,12 +27,10 @@ Write-Banner Starting
 Import-Module -Name c:\users\admin\Documents\WindowsPowerShell\modules\PSTerminalServices -Verbose
 
 $epoch_file="$save_dir/pc-watcher-epoch.txt"
-$screenshot_dir="$save_dir/pc-watcher-screenshots"
-$screenmaster_dir="$save_dir/screen-captures"
-$lockout_file="$save_dir/logs/lockout.txt"
+$lockout_file="$log_dir/lockout.txt"
 
 New-Item -ItemType Directory -Force -Path $save_dir | Out-Null
-New-Item -ItemType Directory -Force -Path $save_dir\logs | Out-Null
+New-Item -ItemType Directory -Force -Path $log_dir | Out-Null
 New-Item -ItemType Directory -Force -Path $screenshot_dir | Out-Null
 
 $started_day=Get-Date -UFormat %Y%m%d
@@ -40,6 +38,7 @@ $started_day=Get-Date -UFormat %Y%m%d
     
 while ($true) {
   Start-Sleep (Get-Random -Minimum 5 -Maximum 10)
+  $CurrentDate = Get-Date
 
   $force_logout_reason=''
 
@@ -69,12 +68,13 @@ while ($true) {
   }
 
   # Remove small screenshots because they're blank
-  Get-ChildItem "$screenmaster_dir" -Filter *.jpg -recurse -file | ? {$_.length -lt 90000} | % {Remove-Item $_.fullname}
+  # keep them for 10 minutes so we see when things are working
+  $DateToDeleteBlankScreenshots = $currentDate.AddMinutes(-10)
+  Get-ChildItem "$screenshot_dir" -Filter *.jpg -recurse -file | ? {$_.length -lt 90000} | Where-Object { $_.LastWriteTime -lt $DatetoDeleteBlankScreenshots } | % {Remove-Item $_.fullname}
   
   # Remove old screenshots
-  $CurrentDate = Get-Date
   $DatetoDelete = $CurrentDate.AddDays(-14)
-  Get-ChildItem "$screenmaster_dir" | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item
+  Get-ChildItem -recurse "$screenshot_dir" | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item
 
   $timesupkidz_status=(Get-Service -Include TimesUpKidz).Status
 
@@ -96,6 +96,16 @@ while ($true) {
 	  Logit "Processes running as $disallowed_process_owners - $bad_procs"
 
 	  $force_logout_reason="|Process(es) owned by $disallowed_process_owners|$force_logout_reason"
+	}
+  }
+
+  if ('' -ne "$limited_admin_user") {
+    $bad_tuk=(Get-Process -Name TimesUpKidz -IncludeUserName | Where UserName -match "$limited_admin_user")
+    if ('' -ne "$bad_tuk") {
+	  $alert="ALERT"
+	  Logit "TimesUpKidz running as $limited_admin_user"
+
+	  $force_logout_reason="|TimesUpKidz running as $limited_admin_user|$force_logout_reason"
 	}
   }
   

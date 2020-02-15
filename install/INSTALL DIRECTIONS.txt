@@ -1,3 +1,10 @@
+Create limited-administrators group
+
+create c:\pc-watcher-data
+c:\pc-watcher-data\logs -- Remove inherited permissions, grant full access to administrators, deny access to limited-administrators
+
+Install screenmaster and configure for c:\pc-watcher-data\screen-captures\username\date
+
 Run the PSTerminalServices installer 
   (PSTerminalServices-Powershell Module folder is not normally needed)
 
@@ -15,3 +22,10 @@ Cygwin:
  -cygrunsrv
 
 ffmpeg: https://ffmpeg.zeranoe.com/builds/
+
+Install pc-watcher as a service: install-pc-watcher-service.ps1
+
+  Reference:
+	https://4sysops.com/archives/how-to-run-a-powershell-script-as-a-windows-service/
+    -NSSM: https://nssm.cc/download
+   
