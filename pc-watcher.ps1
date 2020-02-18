@@ -35,6 +35,7 @@ New-Item -ItemType Directory -Force -Path $screenshot_dir | Out-Null
 
 $started_day=Get-Date -UFormat %Y%m%d
 
+
     
 while ($true) {
   Start-Sleep (Get-Random -Minimum 5 -Maximum 10)
@@ -100,8 +101,8 @@ while ($true) {
   }
 
   if ('' -ne "$limited_admin_user") {
-    $bad_tuk=(Get-Process -Name TimesUpKidz -IncludeUserName | Where UserName -match "$limited_admin_user")
-    if ('' -ne "$bad_tuk") {
+    $bad=(Get-Process -Name TimesUpKidz -IncludeUserName | Where UserName -match "$limited_admin_user")
+    if ('' -ne "$bad") {
 	  $alert="ALERT"
 	  Logit "TimesUpKidz running as $limited_admin_user"
 
@@ -113,21 +114,38 @@ while ($true) {
     $user=$_.UserName; 
     $session= $_.SessionId; 
     $station = $_.WindowStationName
+    $session_current_time = $_.CurrentTime
+    $session_login_time = $_.LoginTime
 
-    Logit "msg=session_details user_name=$user session_id=$session windows_station=$station"
+    $time_since_login_minutes = [Math]::Round(($session_current_time - $session_login_time).TotalMinutes,1)
+
+    Logit "msg=session_details user_name=$user session_id=$session windows_station=$station time_since_login=$time_since_login_minutes mins"
     if ('' -eq $user) {
       continue;
     }
 
-    if ($station -ne 'Console') {
-      #Is users allowed to be logged in remotely
-      if ( $allowed_remote_users.Contains('/' + $user + '/') ) {
-        Logit "msg=remote_user_okay User is allowed to be logged in remotely: $user"
-      } else {
-        $force_logout_reason="|User is not allowed to be logged in remotely|$force_logout_reason"
-      }
+    $sm_status="na"
+    if ( $screenshot_users.Contains('/'+$user+'/') ) {
+      if ( $time_since_login_minutes -ge 2 ) {
+          #Check that screenmaster is running
+          $sm=(Get-Process -Name ScreenMaster -IncludeUserName | Where UserName -match "$user")
+          if ('' -eq "$sm") {
+		      $sm_status="not-running"
+              $alert="ALERT"
+        	  $force_logout_reason="|ScreenMaster is not running as $user (even after $time_since_login_minutes minutes since login)|$force_logout_reason"    
+          } else {
+		      $sm_status="running"
+		  }
+       } else {
+	     sm_status="unk-new-session"
+         Logit "Ignoring potential screenmaster problems in first minute of log in"
+       }
     }
-    Logit "msg=summary active_user=$user tuk=$timesupkidz_status clock=$time_status force_logout_reason=$force_logout_reason"
+    if ($station -ne 'Console') {
+      Logit "msg=remote_user_warning $user/$session@$station"
+    }
+    Logit "msg=summary active_user=$user tuk=$timesupkidz_status clock=$time_status sm_status=$sm_status force_logout_reason=$force_logout_reason"
+
 
 
     if ($force_logout_reason -ne '') {
