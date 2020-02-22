@@ -119,6 +119,14 @@ while ($true) {
 
     $time_since_login_minutes = [Math]::Round(($session_current_time - $session_login_time).TotalMinutes,1)
 
+	if ( $user -eq "unlock" ) {
+	  Logit "Unlocking pc-watcher because unlock has logged in"
+	  $force_logout_reason="(one time)Done unlocking computer|$force_logout_reason"
+	  if ( (Test-Path "$lockout_file") ) {
+	    $now_epoch=(Get-Date -UFormat %s)
+	    Rename-Item "$lockout_file" "$lockout_file.old.$now_epoch.txt"
+	  }
+	}
     Logit "msg=session_details user_name=$user session_id=$session windows_station=$station time_since_login=$time_since_login_minutes mins"
     if ('' -eq $user) {
       continue;
@@ -137,7 +145,7 @@ while ($true) {
 		      $sm_status="running"
 		  }
        } else {
-	     sm_status="unk-new-session"
+	     $sm_status="unk-new-session"
          Logit "Ignoring potential screenmaster problems in first minute of log in"
        }
     }
@@ -155,9 +163,10 @@ while ($true) {
       }
 
       $alert="ALERT"
-	  Logit "Writing force-logout reason to: $lockout_file"
-	  if ( -not (Test-Path "$lockout_file") )
+	  # Create lockout file if this is not a one-time problem
+	  if ( -not $force_logout_reason.Contains("(one time)") -and -not (Test-Path "$lockout_file") )
 	  {  
+  	    Logit "Writing force-logout reason to: $lockout_file"
 	     New-Item "$lockout_file"
 		 Set-Content "$lockout_file" "$cur_date - $force_logout_reason"
 	  }
