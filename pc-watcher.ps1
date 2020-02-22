@@ -101,7 +101,7 @@ while ($true) {
   }
 
   if ('' -ne "$limited_admin_user") {
-    $bad=(Get-Process -Name TimesUpKidz -IncludeUserName | Where UserName -match "$limited_admin_user")
+    $bad=(Get-Process -Name TimesUpKidz -IncludeUserName -ErrorAction Ignore | Where UserName -match "$limited_admin_user")
     if ('' -ne "$bad") {
 	  $alert="ALERT"
 	  Logit "TimesUpKidz running as $limited_admin_user"
