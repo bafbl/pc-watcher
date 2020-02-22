@@ -3,11 +3,11 @@ $save_dir="c:\users\admin\pc-watcher-data"
 $log_dir="" # this will be made $save_dir/logs if it is not overridden within this file
 
 # Usernames need to match $ENV:USERNAME
-$always_allow_users="/admin/bert/"
+$always_allow_users="/admin/bert/unlock/"
 $limited_admin_user="" #Needs to be set per computer below
 
 #not presently used
-$screenshot_users="/admin/rowan-school/max-school/e-sch/e-school/max-work/a-work"
+$screenshot_users="/admin/rowan-school/max-school/e-sch/e-school/max-work/aubrey-work/e-admin-local/"
 $screenshot_dir="" #this will be relative to $save_dir if it not overridden in this file
 
 
@@ -37,6 +37,9 @@ switch ($ENV:COMPUTERNAME) {
   }
   "ERIKLAPTOP" {
 	$disallowed_process_owners="e-admin-local"
+	$limited_admin_user="e-admin-local"
+	$save_dir="c:/pc-watching"
+    $screenshot_dir="$save_dir/screenshots"
   }
 }
 
