@@ -75,7 +75,7 @@ while ($true) {
   
   # Remove old screenshots
   $DatetoDelete = $CurrentDate.AddDays(-14)
-  Get-ChildItem -recurse "$screenshot_dir" | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item
+  Get-ChildItem -recurse "$screenshot_dir" | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item -Force -Recurse
 
   $timesupkidz_status=(Get-Service -Include TimesUpKidz).Status
 
